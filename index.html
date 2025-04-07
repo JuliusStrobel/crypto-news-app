@@ -1,0 +1,39 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto News Checker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    .card { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+    .positive { background: #d4edda; }
+    .negative { background: #f8d7da; }
+    .neutral { background: #fff3cd; }
+  </style>
+</head>
+<body>
+  <h1>📈 Crypto News Checker</h1>
+  <div id="news"></div>
+
+  <script>
+    fetch("/news")
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById("news");
+        data.forEach(item => {
+          const div = document.createElement("div");
+          div.className = `card ${item.sentiment.toLowerCase()}`;
+          div.innerHTML = `
+            <h3>${item.title}</h3>
+            <p><strong>Sentiment:</strong> ${item.sentiment}</p>
+            <p><strong>Trump/Zölle:</strong> ${item.trump_related ? "✅ Ja" : "❌ Nein"}</p>
+            <a href="${item.url}" target="_blank">Zur Quelle</a>
+          `;
+          container.appendChild(div);
+        });
+      });
+  </script>
+</body>
+</html>
