@@ -2,7 +2,9 @@ from flask import Flask, jsonify, render_template
 import requests
 from textblob import TextBlob
 
-app = Flask(__name__)
+import os
+app = Flask(__name__, template_folder=os.path.dirname(os.path.abspath(__file__)))
+
 
 def analyze_sentiment(text):
     blob = TextBlob(text)
