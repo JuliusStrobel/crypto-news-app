@@ -72,7 +72,66 @@ def get_analyzed_news():
 
 @app.route("/news")
 def news():
-    return jsonify(get_analyzed_news())
+    try:
+        url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=15&apiKey={NEWSAPI_KEY}"
+        response = requests.get(url)
+        data = response.json()
+
+        # Prüfe ob API erfolgreich war
+        if data.get("status") != "ok":
+            return jsonify({
+                "market_trend": "❌ Fehler beim Abrufen der News",
+                "articles": [],
+                "trump_info": [f"Fehler: {data.get('code')} – {data.get('message')}"]
+            })
+
+        # Weiterverarbeitung
+        results = []
+        trump_articles = []
+        pos_count, neg_count = 0, 0
+
+        for article in data.get("articles", []):
+            title = article.get("title", "")
+            description = article.get("description", "")
+            text = f"{title}. {description}"
+
+            sentiment_label = analyze_sentiment(text)
+            if sentiment_label == "POSITIVE":
+                pos_count += 1
+            elif sentiment_label == "NEGATIVE":
+                neg_count += 1
+
+            is_trump_related = any(k in text.lower() for k in trump_keywords)
+            if is_trump_related:
+                trump_articles.append(f"{title} – {description}")
+
+            results.append({
+                "title": title,
+                "sentiment": sentiment_label,
+                "trump_related": is_trump_related,
+                "url": article.get("url", "#")
+            })
+
+        market_trend = (
+            "📈 Markt tendiert nach oben" if pos_count > neg_count else
+            "📉 Markt tendiert nach unten" if neg_count > pos_count else
+            "➖ Markt neutral"
+        )
+
+        return jsonify({
+            "market_trend": market_trend,
+            "articles": results,
+            "trump_info": trump_articles
+        })
+
+    except Exception as e:
+        # Fehlerausgabe als JSON (wird im Frontend angezeigt)
+        return jsonify({
+            "market_trend": "❌ Fehler im Server",
+            "articles": [],
+            "trump_info": [str(e)]
+        }), 500
+
 
 @app.route("/")
 def home():
