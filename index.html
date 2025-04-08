@@ -1,38 +1,110 @@
-<!-- index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crypto News Checker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    .card { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
-    .positive { background: #d4edda; }
-    .negative { background: #f8d7da; }
-    .neutral { background: #fff3cd; }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    header {
+      background: #1e88e5;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      padding: 2rem;
+      max-width: 900px;
+      margin: auto;
+    }
+    h2 {
+      color: #333;
+    }
+    .trend {
+      font-size: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .news-card {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-left: 8px solid transparent;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .POSITIVE {
+      border-left-color: #4caf50;
+    }
+    .NEGATIVE {
+      border-left-color: #f44336;
+    }
+    .NEUTRAL {
+      border-left-color: #ffc107;
+    }
+    .trump-box {
+      background: #fffde7;
+      border: 2px dashed #fbc02d;
+      padding: 1rem;
+      margin-top: 2rem;
+      border-radius: 6px;
+    }
+    .trump-box ul {
+      padding-left: 1.2rem;
+    }
   </style>
 </head>
 <body>
-  <h1>📈 Crypto News Checker</h1>
-  <div id="news"></div>
+  <header>
+    <h1>📈 Crypto News Checker</h1>
+  </header>
+  <main>
+    <h2 class="trend" id="market-trend">Marktanalyse wird geladen...</h2>
+
+    <div id="news"></div>
+
+    <div class="trump-box">
+      <h2>📰 Trump & Zölle</h2>
+      <ul id="trump-news">
+        <li>Wird geladen...</li>
+      </ul>
+    </div>
+  </main>
 
   <script>
     fetch("/news")
       .then(res => res.json())
       .then(data => {
+        document.getElementById("market-trend").textContent = data.market_trend;
+
         const container = document.getElementById("news");
-        data.forEach(item => {
+        data.articles.forEach(item => {
           const div = document.createElement("div");
-          div.className = `card ${item.sentiment.toLowerCase()}`;
+          div.className = `news-card ${item.sentiment.toUpperCase()}`;
           div.innerHTML = `
             <h3>${item.title}</h3>
             <p><strong>Sentiment:</strong> ${item.sentiment}</p>
             <p><strong>Trump/Zölle:</strong> ${item.trump_related ? "✅ Ja" : "❌ Nein"}</p>
-            <a href="${item.url}" target="_blank">Zur Quelle</a>
+            <a href="${item.url}" target="_blank">🔗 Zur Quelle</a>
           `;
           container.appendChild(div);
         });
+
+        const trumpList = document.getElementById("trump-news");
+        trumpList.innerHTML = "";
+        if (data.trump_info.length > 0) {
+          data.trump_info.forEach(entry => {
+            const li = document.createElement("li");
+            li.textContent = entry;
+            trumpList.appendChild(li);
+          });
+        } else {
+          trumpList.innerHTML = "<li>Keine aktuellen Trump-/Zollnachrichten gefunden.</li>";
+        }
       });
   </script>
 </body>
