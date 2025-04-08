@@ -5,10 +5,10 @@ from transformers import pipeline
 app = Flask(__name__)
 sentiment_analyzer = pipeline(
     "sentiment-analysis",
-    model="mrm8488/bert-tiny-finetuned-sst2",
-    tokenizer="mrm8488/bert-tiny-finetuned-sst2",
-    device=-1
+    model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+    device=-1  # Nur CPU – vermeidet RAM-Probleme
 )
+
 
 
 
