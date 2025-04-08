@@ -1,141 +1,80 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, request, jsonify
 import requests
-from textblob import TextBlob
+from bs4 import BeautifulSoup
+import re
 
-import os
-app = Flask(__name__, template_folder=os.path.dirname(os.path.abspath(__file__)))
+app = Flask(__name__)
 
+def is_crypto_related(text):
+    """Prüft, ob ein Artikel Krypto-relevante Begriffe enthält."""
+    keywords = ["bitcoin", "blockchain", "ethereum", "crypto", "btc", "nft"]
+    text = text.lower()
+    return any(keyword in text for keyword in keywords)
 
-def analyze_sentiment(text):
-    blob = TextBlob(text)
-    polarity = blob.sentiment.polarity
-    if polarity > 0.1:
-        return "POSITIVE"
-    elif polarity < -0.1:
-        return "NEGATIVE"
-    else:
-        return "NEUTRAL"
-
-
-
-
-NEWSAPI_KEY = "401a014dce5c429091d4bc9022e7d6dd"
-
-trump_keywords = ["trump", "zoll", "tariff", "trade war", "import tax"]
-
-def get_analyzed_news():
-    url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=15&apiKey={NEWSAPI_KEY}"
-    response = requests.get(url)
-    data = response.json()
-
-    results = []
-    trump_articles = []
-
-    pos_count, neg_count = 0, 0
-
-    for article in data.get("articles", []):
-        title = article["title"]
-        description = article.get("description", "")
-        text = f"{title}. {description}"
-
-        sentiment_label = analyze_sentiment(text)
-        if sentiment_label == "POSITIVE":
-            pos_count += 1
-        elif sentiment_label == "NEGATIVE":
-            neg_count += 1
-
-        is_trump_related = any(k in text.lower() for k in trump_keywords)
-        if is_trump_related:
-            trump_articles.append(f"{title} - {description}")
-
-        results.append({
-            "title": title,
-            "sentiment": sentiment_label,
-            "trump_related": is_trump_related,
-            "url": article["url"]
-        })
-
-    # Markttrend basierend auf Mehrheit
-    if pos_count > neg_count:
-        market_trend = "📈 Markt tendiert nach oben"
-    elif neg_count > pos_count:
-        market_trend = "📉 Markt tendiert nach unten"
-    else:
-        market_trend = "➖ Markt neutral"
-
-    return {
-        "articles": results,
-        "market_trend": market_trend,
-        "trump_info": trump_articles
-    }
-
-
-@app.route("/news")
-def news():
+@app.route("/check-news", methods=["POST"])
+def check_news():
     try:
-        url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=15&apiKey={NEWSAPI_KEY}"
-        response = requests.get(url)
-        data = response.json()
+        data = request.get_json()
 
-        # Prüfe ob API erfolgreich war
-        if data.get("status") != "ok":
+        if not data or "topic" not in data:
+            return jsonify({"error": "Kein Thema angegeben"}), 400
+
+        topic = data["topic"]
+        url = f"https://www.tagesschau.de/suche2.html?searchText={topic}"
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        response = requests.get(url, headers=headers)
+
+        if response.status_code != 200:
             return jsonify({
-                "market_trend": "❌ Fehler beim Abrufen der News",
-                "articles": [],
-                "trump_info": [f"Fehler: {data.get('code')} – {data.get('message')}"]
-            })
+                "error": "Fehler beim Abrufen der Daten",
+                "status_code": response.status_code,
+                "body": response.text[:500]  # nur Ausschnitt zur Sicherheit
+            }), 502
 
-        # Weiterverarbeitung
+        # Inhalt ist HTML, kein JSON
+        html = response.text
+        soup = BeautifulSoup(html, "html.parser")
+
+        # Artikelüberschriften extrahieren
         results = []
-        trump_articles = []
-        pos_count, neg_count = 0, 0
+        for article in soup.find_all("article"):
+            headline_tag = article.find(["h2", "h3"])
+            paragraph = article.find("p")
+            if headline_tag and paragraph:
+                headline = headline_tag.get_text(strip=True)
+                summary = paragraph.get_text(strip=True)
+                full_text = f"{headline} {summary}"
+                crypto_related = is_crypto_related(full_text)
+                results.append({
+                    "headline": headline,
+                    "summary": summary,
+                    "crypto_related": crypto_related
+                })
 
-        for article in data.get("articles", []):
-            title = article.get("title", "")
-            description = article.get("description", "")
-            text = f"{title}. {description}"
-
-            sentiment_label = analyze_sentiment(text)
-            if sentiment_label == "POSITIVE":
-                pos_count += 1
-            elif sentiment_label == "NEGATIVE":
-                neg_count += 1
-
-            is_trump_related = any(k in text.lower() for k in trump_keywords)
-            if is_trump_related:
-                trump_articles.append(f"{title} – {description}")
-
-            results.append({
-                "title": title,
-                "sentiment": sentiment_label,
-                "trump_related": is_trump_related,
-                "url": article.get("url", "#")
+        if not results:
+            return jsonify({
+                "message": "Keine relevanten Artikel gefunden.",
+                "articles": []
             })
-
-        market_trend = (
-            "📈 Markt tendiert nach oben" if pos_count > neg_count else
-            "📉 Markt tendiert nach unten" if neg_count > pos_count else
-            "➖ Markt neutral"
-        )
 
         return jsonify({
-            "market_trend": market_trend,
-            "articles": results,
-            "trump_info": trump_articles
+            "topic": topic,
+            "articles": results
         })
 
     except Exception as e:
-        # Fehlerausgabe als JSON (wird im Frontend angezeigt)
         return jsonify({
-            "market_trend": "❌ Fehler im Server",
-            "articles": [],
-            "trump_info": [str(e)]
+            "error": "Serverfehler",
+            "details": str(e)
         }), 500
 
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
-    return render_template("index.html")
+    return "<h1>Crypto News Checker</h1><p>Die API läuft korrekt.</p>"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+    app.run(debug=True)
