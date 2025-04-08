@@ -3,7 +3,12 @@ import requests
 from transformers import pipeline
 
 app = Flask(__name__)
-sentiment_analyzer = pipeline("sentiment-analysis")
+sentiment_analyzer = pipeline(
+    "sentiment-analysis",
+    model="distilbert-base-uncased-finetuned-sst-2-english",
+    device=-1  # CPU only
+)
+
 
 NEWSAPI_KEY = "401a014dce5c429091d4bc9022e7d6dd"
 
