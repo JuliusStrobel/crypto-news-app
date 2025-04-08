@@ -24,28 +24,51 @@ NEWSAPI_KEY = "401a014dce5c429091d4bc9022e7d6dd"
 trump_keywords = ["trump", "zoll", "tariff", "trade war", "import tax"]
 
 def get_analyzed_news():
-    url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=20&apiKey={NEWSAPI_KEY}"
+    url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=15&apiKey={NEWSAPI_KEY}"
     response = requests.get(url)
     data = response.json()
 
     results = []
+    trump_articles = []
+
+    pos_count, neg_count = 0, 0
+
     for article in data.get("articles", []):
         title = article["title"]
         description = article.get("description", "")
         text = f"{title}. {description}"
 
-        sentiment = {"label": analyze_sentiment(text[:512])}
+        sentiment_label = analyze_sentiment(text)
+        if sentiment_label == "POSITIVE":
+            pos_count += 1
+        elif sentiment_label == "NEGATIVE":
+            neg_count += 1
 
         is_trump_related = any(k in text.lower() for k in trump_keywords)
+        if is_trump_related:
+            trump_articles.append(f"{title} - {description}")
 
         results.append({
             "title": title,
-            "sentiment": sentiment["label"],
+            "sentiment": sentiment_label,
             "trump_related": is_trump_related,
             "url": article["url"]
         })
 
-    return results
+    # Markttrend basierend auf Mehrheit
+    if pos_count > neg_count:
+        market_trend = "📈 Markt tendiert nach oben"
+    elif neg_count > pos_count:
+        market_trend = "📉 Markt tendiert nach unten"
+    else:
+        market_trend = "➖ Markt neutral"
+
+    return {
+        "articles": results,
+        "market_trend": market_trend,
+        "trump_info": trump_articles
+    }
+
 
 @app.route("/news")
 def news():
