@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: crypto-news-app
+    env: python
+    buildCommand: "poetry install"
+    startCommand: "poetry run python main.py"  # <- anpassen, falls dein Einstiegspunkt anders ist
