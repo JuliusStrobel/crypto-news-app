@@ -76,5 +76,9 @@ def check_news():
 def home():
     return "<h1>Crypto News Checker</h1><p>Die API läuft korrekt.</p>"
 
+import os
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
