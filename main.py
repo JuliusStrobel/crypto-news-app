@@ -1,13 +1,16 @@
 from flask import Flask, jsonify, render_template
 import requests
-from transformers import pipeline
+from textblob import TextBlob
 
-app = Flask(__name__)
-sentiment_analyzer = pipeline(
-    "sentiment-analysis",
-    model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-    device=-1  # Nur CPU – vermeidet RAM-Probleme
-)
+def analyze_sentiment(text):
+    blob = TextBlob(text)
+    polarity = blob.sentiment.polarity
+    if polarity > 0.1:
+        return "POSITIVE"
+    elif polarity < -0.1:
+        return "NEGATIVE"
+    else:
+        return "NEUTRAL"
 
 
 
@@ -27,7 +30,8 @@ def get_analyzed_news():
         description = article.get("description", "")
         text = f"{title}. {description}"
 
-        sentiment = sentiment_analyzer(text[:512])[0]
+        sentiment = {"label": analyze_sentiment(text[:512])}
+
         is_trump_related = any(k in text.lower() for k in trump_keywords)
 
         results.append({
