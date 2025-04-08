@@ -2,6 +2,8 @@ from flask import Flask, jsonify, render_template
 import requests
 from textblob import TextBlob
 
+app = Flask(__name__)
+
 def analyze_sentiment(text):
     blob = TextBlob(text)
     polarity = blob.sentiment.polarity
